@@ -278,7 +278,7 @@ input:focus, textarea:focus, select:focus {
 
     <div class="input-group">
       <label for="prompt">生成要求 <span style="color: gray;">（可选）</span></label>
-      <textarea id="prompt" placeholder="例如：题目难度适中，知识点涵盖全面，包含几何与代数题目"></textarea>
+      <textarea id="prompt" placeholder="例如：题目难度适中，包含xxx题目"></textarea>
     </div>
 
     <div class="input-group" style="text-align: center;">
@@ -302,6 +302,71 @@ input:focus, textarea:focus, select:focus {
 </main>
 
 <script>
+// 定义学科-年级-题型映射关系
+const QUESTION_TYPE_MAP = {
+  '数学': {
+    '小学': ['选择题', '判断题', '填空题', '计算题', '应用题'],
+    '初中': ['选择题', '填空题', '计算题', '解答题'],
+    '高中': ['选择题', '填空题', '计算题', '解答题', '证明题', '综合题'],
+    '大学': ['选择题', '填空题', '解答题', '证明题', '综合题'],
+    '其他': ['选择题', '判断题', '填空题', '计算题', '简答题', '综合题']
+  },
+  '语文': {
+    '小学': ['选择题', '判断题', '填空题', '阅读理解', '作文'],
+    '初中': ['选择题', '填空题', '阅读理解', '文言文阅读', '作文'],
+    '高中': ['选择题', '填空题', '阅读理解', '文言文阅读', '古诗词鉴赏', '作文'],
+    '大学': ['选择题', '填空题', '阅读理解', '文言文阅读', '古诗词鉴赏', '作文'],
+    '其他': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  },
+  '英语': {
+    '小学': ['选择题', '判断题', '填空题', '阅读理解', '写作'],
+    '初中': ['选择题', '填空题', '完形填空', '阅读理解', '写作'],
+    '高中': ['选择题', '填空题', '完形填空', '阅读理解', '七选五', '写作'],
+    '大学': ['选择题', '填空题', '完形填空', '阅读理解', '七选五', '写作'],
+    '其他': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  },
+  '物理': {
+    '初中': ['选择题', '填空题', '作图题', '实验题', '计算题'],
+    '高中': ['选择题', '填空题', '实验题', '计算题', '综合题'],
+    '大学': ['选择题', '填空题', '实验题', '计算题', '证明题', '综合题'],
+    '其他': ['选择题', '填空题', '计算题', '简答题', '综合题']
+  },
+  '化学': {
+    '初中': ['选择题', '填空题', '简答题', '实验题', '计算题'],
+    '高中': ['选择题', '填空题', '实验题', '推断题', '计算题', '综合题'],
+    '大学': ['选择题', '填空题', '实验题', '推断题', '计算题', '综合题'],
+    '其他': ['选择题', '填空题', '计算题', '简答题', '综合题']
+  },
+  '生物': {
+    '初中': ['选择题', '判断题', '填空题', '简答题'],
+    '高中': ['选择题', '填空题', '简答题', '实验题', '综合题'],
+    '大学': ['选择题', '填空题', '简答题', '实验题', '综合题'],
+    '其他': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  },
+  '历史': {
+    '初中': ['选择题', '判断题', '填空题', '材料题', '简答题'],
+    '高中': ['选择题', '材料题', '简答题', '论述题'],
+    '大学': ['选择题', '材料题', '简答题', '论述题'],
+    '其他': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  },
+  '地理': {
+    '初中': ['选择题', '判断题', '填空题', '读图题', '简答题'],
+    '高中': ['选择题', '读图题', '简答题', '综合题'],
+    '大学': ['选择题', '读图题', '简答题', '综合题'],
+    'other': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  },
+  '政治': {
+    '初中': ['选择题', '判断题', '填空题', '简答题', '材料分析题'],
+    '高中': ['选择题', '简答题', '材料分析题', '论述题'],
+    '大学': ['选择题', '简答题', '材料分析题', '论述题'],
+    'other': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  },
+  // 其他学科使用默认题型
+  '_default': {
+    '_default': ['选择题', '判断题', '填空题', '简答题', '综合题']
+  }
+};
+
 // 初始化函数
 function setupDynamicInputs() {
   const config = [
@@ -343,14 +408,71 @@ function setupDynamicInputs() {
         highGrade.style.display = 'block';
         break;
     }
+    
+    // 学科或年级变化时更新题型
+    resetQuestionTypes();
   }
 
   gradeSelect.addEventListener('change', updateGradeDetail);
   updateGradeDetail();
+  
+  // 学科变化时也更新题型
+  document.getElementById('subject').addEventListener('change', resetQuestionTypes);
 }
 
-const ALL_TYPES = ['选择题', '判断题', '填空题', '计算题', '简答题', '综合题'];
 const container = document.getElementById('question-type-container');
+
+// 获取当前学科和年级对应的题型列表
+function getAvailableQuestionTypes() {
+  const subject = getDynamicValue('subject') || '数学';
+  const grade = getGradeDetail() || '高中';
+  
+  // 查找对应的题型
+  let types = [];
+  if (QUESTION_TYPE_MAP[subject]) {
+    // 尝试匹配具体年级
+    if (QUESTION_TYPE_MAP[subject][grade]) {
+      types = QUESTION_TYPE_MAP[subject][grade];
+    } 
+    // 尝试匹配学段（小学/初中/高中/大学）
+    else {
+      const gradeLevel = document.getElementById('grade').value;
+      if (QUESTION_TYPE_MAP[subject][gradeLevel]) {
+        types = QUESTION_TYPE_MAP[subject][gradeLevel];
+      } 
+      // 使用该学科的"其他"选项
+      else if (QUESTION_TYPE_MAP[subject]['其他']) {
+        types = QUESTION_TYPE_MAP[subject]['其他'];
+      }
+    }
+  }
+  
+  // 如果找不到匹配，使用默认题型
+  if (types.length === 0) {
+    types = QUESTION_TYPE_MAP['_default']['_default'];
+  }
+  
+  return types;
+}
+
+// 重置所有题型选择框
+function resetQuestionTypes() {
+  // 保存当前已添加的题型数量
+  const currentCount = container.querySelectorAll('.question-type-group').length;
+  
+  // 清空容器
+  container.innerHTML = '';
+  
+  // 重新添加题型选择框
+  for (let i = 0; i < currentCount; i++) {
+    addQuestionType();
+  }
+  
+  // 如果没有题型框，添加一个
+  if (currentCount === 0) {
+    addQuestionType();
+  }
+}
 
 function addQuestionType() {
   const wrapper = document.createElement('div');
@@ -371,8 +493,11 @@ function addQuestionType() {
     .map(s => s.value)
     .filter(val => val !== '其他');
 
+  // 获取可用的题型列表
+  const availableTypes = getAvailableQuestionTypes();
+  
   // 添加未被选过的题型
-  ALL_TYPES.forEach(type => {
+  availableTypes.forEach(type => {
     if (!selectedTypes.includes(type)) {
       const option = document.createElement('option');
       option.value = type;
