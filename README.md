@@ -8,7 +8,7 @@ LLM4Exam is a system designed to help users efficiently and conveniently create 
 
 
 ## Language
-python==3.8
+Python==3.8
 
 ## Environment
 ```
@@ -17,8 +17,14 @@ uvicorn>=0.15.0
 python-docx>=0.8.11
 sentence-transformers>=0.4.1
 faiss-cpu>=1.7.2
-openai>=0.27.0
+openai==1.8.2
 pydantic>=1.8.2
 python-multipart>=0.0.5
 numpy>=1.21.0
+```
+
+## Start
+```
+uvicorn main:app --reload
+# 访问本地http://127.0.0.1:8000/
 ```
