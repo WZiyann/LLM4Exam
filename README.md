@@ -25,6 +25,7 @@ numpy>=1.21.0
 
 ## Start
 ```
-uvicorn main:app --reload
+python main.py
+# 首次启动会自动加载paraphrase-multilingual-MiniLM-L12-v2模型，响应较慢
 # 访问本地http://127.0.0.1:8000/
 ```

@@ -1,50 +1,57 @@
 from openai import OpenAI
 
 client = OpenAI(
-    api_key = "sk-69e3413c29e9425a92c405f15046d3b0",
-    # base_url = "http://192.168.4.228:23333/v1"
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    # api_key = "sk-69e3413c29e9425a92c405f15046d3b0",
+    api_key = "sk-xxxxxx",
+    base_url = "http://192.168.4.228:23333/v1"
+    # base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 
-def generate_questions(prompt, context_list, count):
+def generate_questions(prompt, context_list, count,subject, grade,type):
     print("==========开始生成试题========")
-    print(f"========Prompt: {prompt}")
+    # print(f"========Prompt: {prompt}")
     context = "\n".join(context_list)
-    print(f"========Context: {context}")
-    full_prompt = f"""你是一名老师。根据以下参考题库与提示，生成 {count} 道试题。
+    # print(f"========Context: {context}")
+    full_prompt = f"""你是一名老师。参考以下题库与提示并根据你自身的经验生成生成{grade}{subject}的{count}道{type}试题，如果题库与生成要求明显不匹配，则按照你自身的经验。
 
 要求：
-1. 严格按照给定的题型要求
-2. 题目难度适中
-3. 知识点分布合理
+1. 题目内容要符合题型要求，不能出现明显错误
+2. 知识点分布合理
+3. 题目内容要符合{subject}学科的知识体系
+4. 题目内容要符合{grade}年级的知识水平 
 
 提示: {prompt}
 参考题库:
 {context}
 
 输出格式：
-1. 每道题目单独一行
-2. 选择题需要包含选项（A、B、C、D）
-3. 最后一行标注"答案："并给出正确答案
+1. 每道题目单独一行，题目前加上题目序号
+2. 选择题需要包含选项（A、B、C、D），生成的选择题和判断题目题目后面带上空白的（）
+3. 生成的填空题需要给出____
+4. 如果是生成内容包含公式，请使用word能直接显示的格式书写公式，不用带其他字符
+5. 只需给出题目内容，不需要其他说明，不要包含markdown的标识符号（例如**，##，```等）
+6. 生成题目之前，根据{type}写一段题型描述，例如：判断题（请判断下列陈述是否正确，正确的在题后括号内打“√”，错误的打“×”）；单项选择题(下列每题均有四个选项，其中只有一个选项符合题意。）
+
 """
     print(f"========Full Prompt: {full_prompt}")
     response = client.chat.completions.create(
-        model="qwen-turbo",
+        # model="qwen-turbo",
+        model="qwen",
         messages=[{"role": "user", "content": full_prompt}],
         temperature=0.7
     )
     print("==========试题生成完成========", response.choices[0].message.content)
     return response.choices[0].message.content
 
-# 测试用例
-if __name__ == "__main__":
-    prompt = "请生成一道关于机器学习的选择题，包含四个选项和正确答案。"
-    context_list = [
-        "机器学习是人工智能的一个分支，它使计算机能够从数据中学习和改进。",
-        "监督学习和无监督学习是机器学习的两种主要类型。",
-        "常见的机器学习算法包括线性回归、决策树和支持向量机。"
-    ]
-    count = 1
+# # 测试用例
+# if __name__ == "__main__":
+#     prompt = "请生成一道关于机器学习的选择题，包含四个选项和正确答案。"
+#     context_list = [
+#         "机器学习是人工智能的一个分支，它使计算机能够从数据中学习和改进。",
+#         "监督学习和无监督学习是机器学习的两种主要类型。",
+#         "常见的机器学习算法包括线性回归、决策树和支持向量机。"
+#     ]
+#     count = 1
     
-    questions = generate_questions(prompt, context_list, count)
-    print(questions)
+#     questions = generate_questions(prompt, context_list, count)
+#     print(questions)

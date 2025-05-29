@@ -8,6 +8,8 @@ from generator import generate_questions
 from docgen import generate_word_doc
 import uuid, os
 from typing import List
+import uvicorn
+
 app = FastAPI()
 
 # 允许本地静态页面跨域访问
@@ -18,6 +20,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# 中文序号列表
+QUESTION_TYPE_PREFIXES = ['一、', '二、', '三、', '四、', '五、', '六、', '七、', '八、', '九、', '十、']
 
 # 定义请求体的数据模型
 class QuestionTypeItem(BaseModel):
@@ -35,21 +39,29 @@ class GenerationRequest(BaseModel):
 def generate_exam(request: GenerationRequest):
     print(f"-----Received request: {request}----------")
     all_questions = ""
-    # 遍历所有题目类型
-    for item in request.question_types:
+    for index,item in enumerate(request.question_types):
+        # 获取对应的中文序号前缀
+        if index < len(QUESTION_TYPE_PREFIXES):
+            prefix = QUESTION_TYPE_PREFIXES[index]
+        else:
+            # 如果超过10个题型，使用数字序号
+            prefix = f"{index+1}、"
+        
         # 检索相似问题作为上下文
         context = search_similar_questions(request.prompt)
-        # 基于上下文和提示生成题目
-        generated = generate_questions(
-            f"{request.prompt}。请注意！！！生成的题型是：{item.type}", 
-            context, 
-            item.count
-        )
-        all_questions += f"[{item.type}]\n{generated}\n\n"
+        # 判断是否有检索到上下文
+        if context:
+            prompt = f"{request.prompt}。如无参考题库，请根据常识和通用知识生成。"
+            generated = generate_questions(prompt, context, item.count, request.subject,request.grade,item.type)
+        else:
+            # 没有检索到相关内容，提示模型根据通用知识生成
+            prompt = f"{request.prompt}。如无参考题库，请根据常识和通用知识生成。"
+            generated = generate_questions(prompt, [], item.count)
+        # 添加题型前缀
+        all_questions += f"{prefix}{item.type}\n\n{generated}\n\n"
 
     print(f"all_questions：\n{all_questions}")
-    # 生成Word文档并返回文件路径
-    doc_path = generate_word_doc(all_questions, request.subject)
+    doc_path = generate_word_doc(all_questions, request.subject, request.grade)
     print(f"生成的Word文档路径：{doc_path}")
     return {"file": doc_path}
 
@@ -64,3 +76,6 @@ def download_file(path: str = Query(..., description="Word文档路径")):
     )
 
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
